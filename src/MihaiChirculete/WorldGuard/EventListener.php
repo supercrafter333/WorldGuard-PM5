@@ -22,17 +22,22 @@
 
 namespace MihaiChirculete\WorldGuard;
 
-use pocketmine\block\{BlockLegacyIds, Block};
+use pocketmine\block\{BlockTypeIds};
 use pocketmine\entity\projectile\{Arrow, EnderPearl};
 use pocketmine\event\block\{BlockPlaceEvent, BlockBreakEvent, LeavesDecayEvent, BlockGrowEvent, BlockUpdateEvent, BlockSpreadEvent, BlockBurnEvent};
 use pocketmine\event\entity\{EntityDamageEvent, EntityDamageByEntityEvent, EntityExplodeEvent, EntityTeleportEvent, ProjectileLaunchEvent};
 use pocketmine\event\Listener;
-use pocketmine\event\player\{PlayerJoinEvent, PlayerMoveEvent, PlayerInteractEvent, PlayerItemConsumeEvent, PlayerCommandPreprocessEvent, PlayerDropItemEvent, PlayerBedEnterEvent, PlayerChatEvent, PlayerExhaustEvent, PlayerDeathEvent, PlayerQuitEvent};
+use pocketmine\event\player\{PlayerJoinEvent, PlayerMoveEvent, PlayerInteractEvent, PlayerItemConsumeEvent, PlayerDropItemEvent, PlayerBedEnterEvent, PlayerChatEvent, PlayerExhaustEvent, PlayerDeathEvent, PlayerQuitEvent};
+use pocketmine\event\server\CommandEvent;
+use pocketmine\item\Bucket;
+use pocketmine\item\LiquidBucket;
+use pocketmine\item\VanillaItems;
 use pocketmine\permission\DefaultPermissions;
 use pocketmine\player\Player;
 use pocketmine\utils\TextFormat as TF;
 use pocketmine\world\Position;
 use function json_encode;
+use function str_contains;
 
 class EventListener implements Listener {
 
@@ -41,13 +46,24 @@ class EventListener implements Listener {
     //These are the items that can be activated with the "use" flag enabled.
     const USABLES = [23, 25, 54, 58, 61, 62, 63, 64, 68, 69, 70, 71, 72, 77, 84, 92, 93, 94, 96, 107, 116, 117, 118, 125, 130, 131, 132, 137, 138, 143, 145, 146, 147, 148, 149, 150, 154, 167, 183, 184, 185, 186, 187, 188, 189, 193, 194, 195, 196, 197, 458];
 
-    const POTIONS = [373, 374, 437, 438, 444];
+    public static array $POTIONS;
 
-    const OTHER = [256, 259, 269, 273, 277, 284, 290, 291, 292, 293, 294];
+    public static array $OTHER;
 
-    private $plugin;
+    public function __construct(private WorldGuard $plugin)
+    {
+        self::$POTIONS = [VanillaItems::POTION()->getTypeId(), VanillaItems::SPLASH_POTION()->getType(),
+            VanillaItems::GLASS_BOTTLE()->getTypeId(), VanillaItems::EXPERIENCE_BOTTLE()->getTypeId(),
+            VanillaItems::DRAGON_BREATH()->getTypeId()];
 
-    public function __construct(WorldGuard $plugin){$this->plugin = $plugin;}
+        self::$OTHER = [VanillaItems::FLINT_AND_STEEL()->getTypeId(),
+            VanillaItems::WOODEN_SHOVEL()->getTypeId(), VanillaItems::GOLDEN_SHOVEL()->getTypeId(),
+            VanillaItems::DIAMOND_SHOVEL()->getTypeId(), VanillaItems::IRON_SHOVEL()->getTypeId(),
+            VanillaItems::NETHERITE_SHOVEL()->getTypeId(), VanillaItems::STONE_SHOVEL()->getTypeId(),
+            VanillaItems::WOODEN_HOE()->getTypeId(), VanillaItems::GOLDEN_HOE()->getTypeId(),
+            VanillaItems::DIAMOND_HOE()->getTypeId(), VanillaItems::IRON_HOE()->getTypeId(),
+            VanillaItems::NETHERITE_HOE()->getTypeId(), VanillaItems::STONE_HOE()->getTypeId()];
+    }
 
     public function onJoin(PlayerJoinEvent $event)
     {
@@ -61,7 +77,7 @@ class EventListener implements Listener {
 
     public function onInteract(PlayerInteractEvent $event)
     {
-        if ($event->getItem()->getID() == 325){
+        if ($event->getItem() instanceof Bucket || $event->getItem() instanceof LiquidBucket){
             $player = $event->getPlayer();
             if (($reg = $this->plugin->getRegionFromPosition($event->getBlock()->getPosition())) !== "") {
                 if ($reg->getFlag("block-place") === "false") {
@@ -120,46 +136,46 @@ class EventListener implements Listener {
 	    
         if (($reg = $this->plugin->getRegionByPlayer($player)) !== "") {
             if ($reg->getFlag("pluginbypass") === "false") {
-                $block = $event->getBlock()->getId();
+                $block = $event->getBlock()->getTypeId();
 		if ($reg->getFlag("interactframe") === "false") {
-                    if($player->hasPermission("worldguard.interactframe." . $reg->getName()) && $block === BlockLegacyIds::ITEM_FRAME_BLOCK) {
+                    if($player->hasPermission("worldguard.interactframe." . $reg->getName()) && ($block === BlockTypeIds::ITEM_FRAME || $block === BlockTypeIds::GLOWING_ITEM_FRAME)) {
                         $event->cancel();
 		    }
 		}
                 if ($reg->getFlag("use") === "false") {
-                    if($player->hasPermission("worldguard.usebarrel." . $reg->getName()) && $block === BlockLegacyIds::BARREL)
+                    if($player->hasPermission("worldguard.usebarrel." . $reg->getName()) && $block === BlockTypeIds::BARREL)
                         return;
-                    if($player->hasPermission("worldguard.usechest." . $reg->getName()) && $block === BlockLegacyIds::CHEST)
+                    if($player->hasPermission("worldguard.usechest." . $reg->getName()) && $block === BlockTypeIds::CHEST)
                         return;
-                    if($player->hasPermission("worldguard.usechestender." . $reg->getName()) && $block === BlockLegacyIds::ENDER_CHEST)
+                    if($player->hasPermission("worldguard.usechestender." . $reg->getName()) && $block === BlockTypeIds::ENDER_CHEST)
                         return;
-                    if($player->hasPermission("worldguard.usetrappedchest." . $reg->getName()) && $block === BlockLegacyIds::TRAPPED_CHEST)
+                    if($player->hasPermission("worldguard.usetrappedchest." . $reg->getName()) && $block === BlockTypeIds::TRAPPED_CHEST)
                         return;
-                    if($player->hasPermission("worldguard.enchantingtable." . $reg->getName()) && $block === BlockLegacyIds::ENCHANTING_TABLE)
+                    if($player->hasPermission("worldguard.enchantingtable." . $reg->getName()) && $block === BlockTypeIds::ENCHANTING_TABLE)
                         return;
-                    if($player->hasPermission("worldguard.usefurnaces." . $reg->getName()) && $block === BlockLegacyIds::FURNACE )
+                    if($player->hasPermission("worldguard.usefurnaces." . $reg->getName()) && $block === BlockTypeIds::FURNACE )
                         return;
-                    if($player->hasPermission("worldguard.usedoors." . $reg->getName()) && ($block === BlockLegacyIds::ACACIA_DOOR_BLOCK || $block === BlockLegacyIds::BIRCH_DOOR_BLOCK || $block === BlockLegacyIds::DARK_OAK_DOOR_BLOCK || $block === BlockLegacyIds::IRON_DOOR_BLOCK || $block === BlockLegacyIds::JUNGLE_DOOR_BLOCK || $block === BlockLegacyIds::OAK_DOOR_BLOCK || $block === BlockLegacyIds::SPRUCE_DOOR_BLOCK || $block === BlockLegacyIds::WOODEN_DOOR_BLOCK))
+                    if($player->hasPermission("worldguard.usedoors." . $reg->getName()) && ($block === BlockTypeIds::ACACIA_DOOR || $block === BlockTypeIds::BIRCH_DOOR || $block === BlockTypeIds::DARK_OAK_DOOR || $block === BlockTypeIds::IRON_DOOR || $block === BlockTypeIds::JUNGLE_DOOR || $block === BlockTypeIds::OAK_DOOR || $block === BlockTypeIds::SPRUCE_DOOR || ($block === BlockTypeIds::IRON_DOOR || in_array($block, [BlockTypeIds::ACACIA_DOOR, BlockTypeIds::BIRCH_DOOR, BlockTypeIds::CRIMSON_DOOR, BlockTypeIds::JUNGLE_DOOR, BlockTypeIds::DARK_OAK_DOOR, BlockTypeIds::MANGROVE_DOOR, BlockTypeIds::SPRUCE_DOOR, BlockTypeIds::CRIMSON_DOOR, BlockTypeIds::WARPED_DOOR, BlockTypeIds::OAK_DOOR]))))
                         return;
-                    if($player->hasPermission("worldguard.usetrapdoors." . $reg->getName()) && ($block === BlockLegacyIds::IRON_TRAPDOOR || $block === BlockLegacyIds::TRAPDOOR || $block === BlockLegacyIds::WOODEN_TRAPDOOR ))
+                    if($player->hasPermission("worldguard.usetrapdoors." . $reg->getName()) && ($block === BlockTypeIds::IRON_TRAPDOOR || in_array($block, [BlockTypeIds::ACACIA_TRAPDOOR, BlockTypeIds::BIRCH_TRAPDOOR, BlockTypeIds::CRIMSON_TRAPDOOR, BlockTypeIds::JUNGLE_TRAPDOOR, BlockTypeIds::DARK_OAK_TRAPDOOR, BlockTypeIds::MANGROVE_TRAPDOOR, BlockTypeIds::SPRUCE_TRAPDOOR, BlockTypeIds::CRIMSON_TRAPDOOR, BlockTypeIds::WARPED_TRAPDOOR, BlockTypeIds::OAK_TRAPDOOR])))
                         return;
-                    if($player->hasPermission("worldguard.usegates." . $reg->getName()) && ($block === BlockLegacyIds::ACACIA_FENCE_GATE  || $block === BlockLegacyIds::BIRCH_FENCE_GATE || $block === BlockLegacyIds::DARK_OAK_FENCE_GATE || $block === BlockLegacyIds::FENCE_GATE || $block === BlockLegacyIds::JUNGLE_FENCE_GATE || $block === BlockLegacyIds::OAK_FENCE_GATE || $block === BlockLegacyIds::SPRUCE_FENCE_GATE ))
+                    if($player->hasPermission("worldguard.usegates." . $reg->getName()) && ($block === BlockTypeIds::ACACIA_FENCE_GATE  || $block === BlockTypeIds::BIRCH_FENCE_GATE || $block === BlockTypeIds::DARK_OAK_FENCE_GATE || $block === BlockTypeIds::OAK_FENCE_GATE || $block === BlockTypeIds::JUNGLE_FENCE_GATE || $block === BlockTypeIds::OAK_FENCE_GATE || $block === BlockTypeIds::SPRUCE_FENCE_GATE ))
                         return;
-                    if($player->hasPermission("worldguard.useanvil." . $reg->getName()) && ($block === BlockLegacyIds::ANVIL))
+                    if($player->hasPermission("worldguard.useanvil." . $reg->getName()) && ($block === BlockTypeIds::ANVIL))
                         return;
-                    if($player->hasPermission("worldguard.usecauldron." . $reg->getName()) && ($block === BlockLegacyIds::CAULDRON_BLOCK))
+                    if($player->hasPermission("worldguard.usecauldron." . $reg->getName()) && ($block === BlockTypeIds::CAULDRON))
                         return;
-                    if($player->hasPermission("worldguard.usebrewingstand." . $reg->getName()) && ($block === BlockLegacyIds::BREWING_STAND_BLOCK ))
+                    if($player->hasPermission("worldguard.usebrewingstand." . $reg->getName()) && ($block === BlockTypeIds::BREWING_STAND))
                         return;
-                    if($player->hasPermission("worldguard.usebeacon." . $reg->getName()) && ($block === BlockLegacyIds::BEACON ))
+                    if($player->hasPermission("worldguard.usebeacon." . $reg->getName()) && ($block === BlockTypeIds::BEACON ))
                         return;
-                    if($player->hasPermission("worldguard.usecraftingtable." . $reg->getName()) && ($block === BlockLegacyIds::CRAFTING_TABLE ))
+                    if($player->hasPermission("worldguard.usecraftingtable." . $reg->getName()) && ($block === BlockTypeIds::CRAFTING_TABLE ))
                         return;
-                    if($player->hasPermission("worldguard.usenoteblock." . $reg->getName()) && ($block === BlockLegacyIds::NOTE_BLOCK ))
+                    if($player->hasPermission("worldguard.usenoteblock." . $reg->getName()) && ($block === BlockTypeIds::NOTE_BLOCK ))
                         return;
-                    if($player->hasPermission("worldguard.usepressureplate." . $reg->getName()) && ($block === BlockLegacyIds::WOODEN_PRESSURE_PLATE  || $block === BlockLegacyIds::LIGHT_WEIGHTED_PRESSURE_PLATE || $block === BlockLegacyIds::HEAVY_WEIGHTED_PRESSURE_PLATE || $block === BlockLegacyIds::STONE_PRESSURE_PLATE ))
+                    if($player->hasPermission("worldguard.usePRESSURE_PLATE." . $reg->getName()) && (in_array($block, [BlockTypeIds::ACACIA_PRESSURE_PLATE, BlockTypeIds::BIRCH_PRESSURE_PLATE, BlockTypeIds::CRIMSON_PRESSURE_PLATE, BlockTypeIds::JUNGLE_PRESSURE_PLATE, BlockTypeIds::DARK_OAK_PRESSURE_PLATE, BlockTypeIds::MANGROVE_PRESSURE_PLATE, BlockTypeIds::SPRUCE_PRESSURE_PLATE, BlockTypeIds::CRIMSON_PRESSURE_PLATE, BlockTypeIds::WARPED_PRESSURE_PLATE, BlockTypeIds::OAK_PRESSURE_PLATE])  || $block === BlockTypeIds::WEIGHTED_PRESSURE_PLATE_LIGHT || $block === BlockTypeIds::WEIGHTED_PRESSURE_PLATE_HEAVY || $block === BlockTypeIds::STONE_PRESSURE_PLATE))
                         return;
-                    if($player->hasPermission("worldguard.usebutton." . $reg->getName()) && ($block === BlockLegacyIds::STONE_BUTTON || $block === BlockLegacyIds::WOODEN_BUTTON ))
+                    if($player->hasPermission("worldguard.usebutton." . $reg->getName()) && ($block === BlockTypeIds::STONE_BUTTON || (in_array($block, [BlockTypeIds::ACACIA_BUTTON, BlockTypeIds::BIRCH_BUTTON, BlockTypeIds::CRIMSON_BUTTON, BlockTypeIds::JUNGLE_BUTTON, BlockTypeIds::DARK_OAK_BUTTON, BlockTypeIds::MANGROVE_BUTTON, BlockTypeIds::SPRUCE_BUTTON, BlockTypeIds::CRIMSON_BUTTON, BlockTypeIds::WARPED_BUTTON, BlockTypeIds::OAK_BUTTON]))))
                         return;
                     if ($player->hasPermission(DefaultPermissions::ROOT_OPERATOR)){
                         return;
@@ -174,14 +190,14 @@ class EventListener implements Listener {
                 } else $event->uncancel();
 
                 if ($reg->getFlag("potions") === "false") {
-                    if (in_array($event->getItem()->getId(), self::POTIONS)) {
+                    if (in_array($event->getItem()->getTypeId(), self::$POTIONS)) {
                         $player->sendMessage(TF::RED.'You cannot use '.$event->getItem()->getName().' in this area.');
                         $event->cancel();
                         return;
                     }
                 } else $event->uncancel();
                 if(!$player->hasPermission("worldguard.edit." . $reg->getName())){
-                    if (in_array($event->getItem()->getId(), self::OTHER)) {
+                    if (in_array($event->getItem()->getTypeId(), self::$OTHER)) {
                         $player->sendMessage(TF::RED.'You cannot use '.$event->getItem()->getName().'.');
                         $event->cancel();
                         return;
@@ -444,18 +460,20 @@ class EventListener implements Listener {
         return;
 	}
 
-    public function onCommand(PlayerCommandPreprocessEvent $event) {
-        if($this->plugin->getRegionByPlayer($event->getPlayer()) !== "")
-            if(strpos(strtolower($event->getMessage()), '/f claim') === 0)
+    public function onCommand(CommandEvent $event) {
+        if (!$event->getSender() instanceof Player) return;
+
+        if($this->plugin->getRegionByPlayer($event->getSender()) !== "")
+            if(!str_contains(strtolower($event->getCommand()), 'f claim'))
             {
-                $event->getPlayer()->sendMessage(TF::RED.'You cannot claim plots in this area.');
+                $event->getSender()->sendMessage(TF::RED.'You cannot claim plots in this area.');
                 $event->cancel();
             }
 
 
-        $cmd = explode(" ", $event->getMessage())[0];
-        if (substr($cmd, 0, 1) === '/' && $cmd != null) {
-            if (($region = $this->plugin->getRegionByPlayer($player = $event->getPlayer())) !== "" && !$region->isCommandAllowed($cmd)) {
+        $cmd = explode(" ", $event->getCommand())[0];
+        if ($cmd != null) {
+            if (($region = $this->plugin->getRegionByPlayer($player = $event->getSender())) !== "" && !$region->isCommandAllowed($cmd)) {
                 if (!$player->hasPermission("worldguard.bypass-cmd.".$region->getName())){
                     $player->sendMessage(TF::RED.'You cannot use '.$cmd.' in this area.');
                     $event->cancel();
@@ -532,7 +550,7 @@ class EventListener implements Listener {
     }
 
     public function noHunger(PlayerExhaustEvent $exhaustEvent){
-        if ($exhaustEvent->getPlayer() instanceof Player){
+        if ($exhaustEvent->getPlayer() instanceof Player) {
             if(($region = $this->plugin->getRegionByPlayer($exhaustEvent->getPlayer())) !== ""){
                 if($region->getFlag("hunger") === "false") {
                     $exhaustEvent->cancel();

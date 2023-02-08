@@ -190,11 +190,12 @@ class WorldGuard extends PluginBase
         }
     }
 
-    public function getRegionOf(Player $player): string
+    public function getRegionOf(Player $player): ?string
     {
         if ($player instanceof Player) {
             return $this->players[$player->getUniqueId()->getBytes()] ?? "";
         }
+        return null;
     }
 
     public function regionExists(string $name): bool
@@ -223,6 +224,7 @@ class WorldGuard extends PluginBase
     public function getRegionNameFromPosition(Position $pos): string {
         $currentRegion = "";
         $highestPriority = - 1;
+        $pos = Position::fromObject($pos->floor(), $pos->getWorld());
         // $global = new Position(0,0,0,$pos->getWorld()->getDisplayName());
         foreach ($this->regions as $name => $region) {
             if ($region->getLevelName() === $pos->getWorld()->getDisplayName()) {

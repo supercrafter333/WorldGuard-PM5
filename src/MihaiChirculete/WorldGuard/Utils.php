@@ -23,10 +23,8 @@
 namespace MihaiChirculete\WorldGuard;
 
 use pocketmine\player\Player;
-use pocketmine\network\mcpe\protocol\SetPlayerGameTypePacket;
 use pocketmine\entity\Entity;
 use pocketmine\data\bedrock\BiomeIds;
-use pocketmine\world\biome\Biome;
 
 class Utils {
 
@@ -61,7 +59,7 @@ class Utils {
 
     public static function gm2string(int $gm) : string
     {
-        return self::GM2STRING[$gm] ?? "survival";
+        return self::GAMEMODES[$gm] ?? "survival";
     }
 
     /**
@@ -89,8 +87,6 @@ class Utils {
      
     public static function isAnimal(Entity $ent)
     {
-        if($ent instanceof Animal)
-            return true;
         $classname = strtolower(get_class($ent));
         if(str_contains($classname, "bat") !== false ||
             str_contains($classname, "chicken") !== false ||
@@ -121,8 +117,6 @@ class Utils {
     
     public static function isMonster(Entity $ent)
     {
-        if($ent instanceof Monster)
-            return true;
         $classname = strtolower(get_class($ent));
         if(str_contains($classname, "blaze") !== false ||
             str_contains($classname, "cavespider") !== false ||
@@ -206,6 +200,7 @@ class Utils {
                 return BiomeIDs::BIRCH_FOREST;
                 break;
         }
+        return BiomeIds::PLAINS;
     }
 
     public static function setBiome($plugin, Region $reg, $biomeName)
