@@ -257,33 +257,34 @@ class EventListener implements Listener {
 
     public function onPlace(BlockPlaceEvent $event) {
         $player = $event->getPlayer();
-        $block = $event->getBlock();
-        $x = $block->getPosition()->getX();
-        $z = $block->getPosition()->getZ();
-        if ($x < 0){
-            $x = ($x + 1);
-        }
-        if ($z < 0){
-            $z = ($z + 1);
-        }
-        $position = new Position($x,$block->getPosition()->getY(),$z,$block->getPosition()->getWorld());
-        if (($region = $this->plugin->getRegionFromPosition($position)) !== ""){
-            if ($region->getFlag("pluginbypass") === "false"){
-                if ($region->getFlag("block-place") === "false"){
-                    if($event->getPlayer()->hasPermission("worldguard.place." . $region->getName()) || $event->getPlayer()->hasPermission("worldguard.block-place." . $region->getName())){
-                        return true;
-                    }
-                    else if($event->getPlayer()->hasPermission("worldguard.build-bypass")){
-                        return true;
-                    }
-                    else if ($player->hasPermission(DefaultPermissions::ROOT_OPERATOR)){
-                        return true;
-                    }
-                    else{
-                        if ($region->getFlag("deny-msg") === "true") {
-                            $player->sendMessage(TF::RED. $this->plugin->resourceManager->getMessages()["denied-block-place"]);
+        $transaction = $event->getTransaction();
+
+        foreach ($transaction->getBlocks() as [$x, $y, $z, $block]) {
+
+            $x = $block->getPosition()->getX();
+            $z = $block->getPosition()->getZ();
+            if ($x < 0) {
+                $x = ($x + 1);
+            }
+            if ($z < 0) {
+                $z = ($z + 1);
+            }
+            $position = new Position($x, $block->getPosition()->getY(), $z, $block->getPosition()->getWorld());
+            if (($region = $this->plugin->getRegionFromPosition($position)) !== "") {
+                if ($region->getFlag("pluginbypass") === "false") {
+                    if ($region->getFlag("block-place") === "false") {
+                        if ($event->getPlayer()->hasPermission("worldguard.place." . $region->getName()) || $event->getPlayer()->hasPermission("worldguard.block-place." . $region->getName())) {
+                            return true;
+                        } else if ($event->getPlayer()->hasPermission("worldguard.build-bypass")) {
+                            return true;
+                        } else if ($player->hasPermission(DefaultPermissions::ROOT_OPERATOR)) {
+                            return true;
+                        } else {
+                            if ($region->getFlag("deny-msg") === "true") {
+                                $player->sendMessage(TF::RED . $this->plugin->resourceManager->getMessages()["denied-block-place"]);
+                            }
+                            $event->cancel();
                         }
-                    $event->cancel();
                     }
                 }
             }
