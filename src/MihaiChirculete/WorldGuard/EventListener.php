@@ -424,7 +424,7 @@ class EventListener implements Listener {
                 }
         }
 
-        if(strpos(get_class($event->getEntity()), "monster") !== false)
+        if(str_contains(get_class($event->getEntity()), "monster"))
         {
             if(($player = $event->getDamager()) instanceof Player)
             if(($region = $this->plugin->getRegionFromPosition($event->getEntity()->getPosition())) !== "")
@@ -465,7 +465,7 @@ class EventListener implements Listener {
         if (!$event->getSender() instanceof Player) return;
 
         if($this->plugin->getRegionByPlayer($event->getSender()) !== "")
-            if(!str_contains(strtolower($event->getCommand()), 'f claim'))
+            if(str_contains(strtolower($event->getCommand()), 'f claim'))
             {
                 $event->getSender()->sendMessage(TF::RED.'You cannot claim plots in this area.');
                 $event->cancel();
